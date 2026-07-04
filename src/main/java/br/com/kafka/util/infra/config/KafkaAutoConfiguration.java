@@ -4,9 +4,12 @@ import br.com.kafka.util.infra.config.factory.SpringKafkaConsumerFactory;
 import br.com.kafka.util.infra.config.factory.SpringKafkaProducerFactory;
 import br.com.kafka.util.infra.config.injectors.ConsumerKeyInjectionProcessor;
 import br.com.kafka.util.infra.config.injectors.ProducerKeyInjectionProcessor;
+import br.com.kafka.util.infra.config.injectors.TopicKeyAnnotationProcessor;
 import br.com.kafka.util.infra.config.transaction.JaiminhoSpringErrorRecoverer;
 import br.com.kafka.util.infra.config.transaction.JaiminhoTransactionManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -16,6 +19,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
@@ -37,6 +41,15 @@ public class KafkaAutoConfiguration {
 
     private final KafkaConfigProperties properties;
 
+    @Bean
+    @Primary
+    public ObjectMapper objectMapper() {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule());
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        return mapper;
+    }
+
     // 1. O ConsumerFactory base (que você já tem)
     @Bean
     @ConditionalOnExpression("#{ '${kafka.consumer:}' != '' }")
@@ -46,6 +59,14 @@ public class KafkaAutoConfiguration {
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         return new DefaultKafkaConsumerFactory<>(config);
+    }
+
+    @Bean
+    @ConditionalOnProperty(prefix = "kafka", name = "consumer")
+    public static TopicKeyAnnotationProcessor topicKeyAnnotationProcessor(
+            KafkaConfigProperties properties,
+            ObjectMapper objectMapper) {
+        return new TopicKeyAnnotationProcessor(properties, objectMapper);
     }
 
     @Bean
@@ -67,7 +88,6 @@ public class KafkaAutoConfiguration {
         factory.setConsumerFactory(cf);
         factory.setCommonErrorHandler(errorHandler);
 
-        // FORÇA O SPRING KAFKA A USAR VIRTUAL THREADS POR LISTENER
         SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("jaiminho-vt-");
         executor.setVirtualThreads(true);
         factory.getContainerProperties().setListenerTaskExecutor(executor);
@@ -84,10 +104,6 @@ public class KafkaAutoConfiguration {
         return new ConsumerKeyInjectionProcessor(springKafkaConsumerFactoryProvider);
     }
 
-    @Bean
-    public ObjectMapper objectMapper() {
-        return new ObjectMapper();
-    }
 
     @Bean
     @ConditionalOnProperty(prefix = "kafka", name = "consumer")

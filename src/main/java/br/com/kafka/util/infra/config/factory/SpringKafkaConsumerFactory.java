@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.listener.AcknowledgingMessageListener;
@@ -29,9 +30,8 @@ public class SpringKafkaConsumerFactory {
     private final ObjectMapper objectMapper;
     private final ConcurrentHashMap<String, ConcurrentMessageListenerContainer<String, Object>> activeConsumers = new ConcurrentHashMap<>();
 
-    public void createAndStartConsumer(String consumerKey, MessageProcessor processor, Class<?> targetPayloadType) {
+    public void createAndStartConsumer(String consumerKey, MessageProcessor processor, Class<?> targetPayloadType, boolean threadSafe) {
         activeConsumers.computeIfAbsent(consumerKey, key -> {
-
             Map<String, Object> config = new HashMap<>();
             config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.bootstrapServer());
             config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringDeserializer.class);
@@ -45,7 +45,15 @@ public class SpringKafkaConsumerFactory {
                 topicName = specificConfig.topic();
                 config.put(ConsumerConfig.GROUP_ID_CONFIG, specificConfig.groupId());
                 config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, specificConfig.offsetResetConfig().orElse("earliest"));
-                config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "1");
+
+                // AJUSTE DINÂMICO DE LOTE:
+                // Se for threadSafe, podemos ler mais mensagens por Poll para processar em paralelo nas Virtual Threads.
+                // Se NÃO for threadSafe, mantemos 1 por 1 para garantir a ordem estrita de processamento sequencial.
+                if (threadSafe) {
+                    config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "50");
+                } else {
+                    config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "1");
+                }
 
                 if (properties.bootstrapServer() != null && !properties.bootstrapServer().contains("localhost")) {
                     config.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);
@@ -59,11 +67,28 @@ public class SpringKafkaConsumerFactory {
             factory.setCommonErrorHandler(errorHandler);
             factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
 
+            // =========================================================================
+            // CONFIGURAÇÃO DE VIRTUAL THREADS BASEADA NA FLAG THREADSAFE
+            // =========================================================================
+            if (threadSafe) {
+                // Cria um executor assíncrono do Spring configurado para usar Virtual Threads (Java 21+)
+                SimpleAsyncTaskExecutor vtExecutor = new SimpleAsyncTaskExecutor("jaiminho-vt-" + consumerKey + "-");
+                vtExecutor.setVirtualThreads(true);
+
+                // Aloca o executor no container. O Spring passará a despachar o processamento
+                // das mensagens capturadas usando threads virtuais paralelas.
+                factory.getContainerProperties().setListenerTaskExecutor(vtExecutor);
+            }
+            // Se threadSafe for false, não setamos o executor. O Spring usará o comportamento
+            // padrão sequencial bloqueante na thread principal do poll, garantindo a ordem.
+            // =========================================================================
+
             ConcurrentMessageListenerContainer<String, Object> container = factory.createContainer(topicName);
 
             container.setupMessageListener((AcknowledgingMessageListener<String, Object>) (record, acknowledgment) -> {
                 try {
                     MessageWrapper wrapper = new MessageWrapper();
+                    wrapper.setTopicName(record.topic());
                     wrapper.setKey(record.key() != null ? record.key().toString() : null);
                     wrapper.setPartition(record.partition());
                     wrapper.setOffset(record.offset());
@@ -83,7 +108,8 @@ public class SpringKafkaConsumerFactory {
             });
 
             container.start();
-            log.info("Consumer Jaiminho-Spring iniciado com sucesso para a chave: {} no tópico: {}", key, topicName);
+            log.info("Consumer Jaiminho-Spring iniciado com sucesso (threadSafe={}) para a chave: {} no tópico: {}",
+                    threadSafe, key, topicName);
 
             return container;
         });

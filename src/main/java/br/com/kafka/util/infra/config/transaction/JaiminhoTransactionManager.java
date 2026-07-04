@@ -19,7 +19,6 @@ public class JaiminhoTransactionManager {
     private final KafkaConfigProperties properties;
     private final ObjectMapper objectMapper;
 
-    // Adicione este método dentro da classe JaiminhoTransactionManager que criamos antes:
     public SendToKafka getSimpleProducer(String producerKey) {
         Map<String, Object> config = new HashMap<>();
         config.put(org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, properties.bootstrapServer());
