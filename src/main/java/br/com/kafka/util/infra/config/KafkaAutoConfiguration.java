@@ -50,7 +50,6 @@ public class KafkaAutoConfiguration {
         return mapper;
     }
 
-    // 1. O ConsumerFactory base (que você já tem)
     @Bean
     @ConditionalOnExpression("#{ '${kafka.consumer:}' != '' }")
     public ConsumerFactory<String, Object> consumerFactory() {
@@ -74,7 +73,6 @@ public class KafkaAutoConfiguration {
     public SpringKafkaConsumerFactory springKafkaConsumerFactory(
             DefaultErrorHandler errorHandler,
             ObjectMapper objectMapper) {
-        // Passa as propriedades da lib, o gerenciador de erros (DLQ) e o Jackson
         return new SpringKafkaConsumerFactory(properties, errorHandler, objectMapper);
     }
 

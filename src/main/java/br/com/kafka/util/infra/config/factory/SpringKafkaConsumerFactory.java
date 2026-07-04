@@ -46,9 +46,6 @@ public class SpringKafkaConsumerFactory {
                 config.put(ConsumerConfig.GROUP_ID_CONFIG, specificConfig.groupId());
                 config.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, specificConfig.offsetResetConfig().orElse("earliest"));
 
-                // AJUSTE DINÂMICO DE LOTE:
-                // Se for threadSafe, podemos ler mais mensagens por Poll para processar em paralelo nas Virtual Threads.
-                // Se NÃO for threadSafe, mantemos 1 por 1 para garantir a ordem estrita de processamento sequencial.
                 if (threadSafe) {
                     config.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "50");
                 } else {
@@ -67,24 +64,12 @@ public class SpringKafkaConsumerFactory {
             factory.setCommonErrorHandler(errorHandler);
             factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
 
-            // =========================================================================
-            // CONFIGURAÇÃO DE VIRTUAL THREADS BASEADA NA FLAG THREADSAFE
-            // =========================================================================
             if (threadSafe) {
-                // Cria um executor assíncrono do Spring configurado para usar Virtual Threads (Java 21+)
                 SimpleAsyncTaskExecutor vtExecutor = new SimpleAsyncTaskExecutor("jaiminho-vt-" + consumerKey + "-");
                 vtExecutor.setVirtualThreads(true);
-
-                // Aloca o executor no container. O Spring passará a despachar o processamento
-                // das mensagens capturadas usando threads virtuais paralelas.
                 factory.getContainerProperties().setListenerTaskExecutor(vtExecutor);
             }
-            // Se threadSafe for false, não setamos o executor. O Spring usará o comportamento
-            // padrão sequencial bloqueante na thread principal do poll, garantindo a ordem.
-            // =========================================================================
-
             ConcurrentMessageListenerContainer<String, Object> container = factory.createContainer(topicName);
-
             container.setupMessageListener((AcknowledgingMessageListener<String, Object>) (record, acknowledgment) -> {
                 try {
                     MessageWrapper wrapper = new MessageWrapper();

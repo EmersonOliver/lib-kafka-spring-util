@@ -3,11 +3,11 @@ package br.com.kafka.util.infra.config.transaction;
 import br.com.kafka.util.core.domain.ErrorMessage;
 import br.com.kafka.util.infra.config.KafkaConfigProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ser.std.StringSerializer;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
@@ -38,9 +38,8 @@ public class JaiminhoSpringErrorRecoverer implements ConsumerRecordRecoverer {
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
 
-        // Customizações específicas que você usou no Quarkus:
-        config.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, false); // pr.remove("enable.idempotence")
-        config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5); // max.in.flight.request.per.connection
+        config.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, false);
+        config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 5);
         config.put(ProducerConfig.ACKS_CONFIG, "all");
 
         return new DefaultKafkaProducerFactory<>(config);
@@ -63,9 +62,9 @@ public class JaiminhoSpringErrorRecoverer implements ConsumerRecordRecoverer {
             String msgError = exception != null ? exception.getMessage() + (exception.getCause() != null ? ", " + exception.getCause() : "") : "Erro inesperado";
 
             ErrorMessage errorMessageEnvelope = new ErrorMessage(originalPayload, properties.applicationName(), msgError);
-
+            String errorMessageJsonString = objectMapper.writeValueAsString(errorMessageEnvelope);
             String key = record.key() != null ? record.key().toString() : null;
-            ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(targetTopic, key, errorMessageEnvelope);
+            ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(targetTopic, key, errorMessageJsonString);
 
             record.headers().forEach(header -> producerRecord.headers().add(header));
 
