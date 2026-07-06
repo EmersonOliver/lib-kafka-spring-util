@@ -22,7 +22,7 @@ public class SpringSend extends SpringSendKafkaBase implements MsgsTransaction {
     @Override
     public void commit() {
         this.commitInternal();
-        this.closeProducer(); // Garante o fechamento após o fim do ciclo
+        this.closeProducer();
         this.userEnd = true;
     }
 

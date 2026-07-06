@@ -1,4 +1,4 @@
-package br.com.kafka.util.infra.config;
+package br.com.kafka.util.infra.config.properties;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -13,14 +13,20 @@ public record KafkaConfigProperties(
         Map<String, AutomaticResender> automaticResender,
         Map<String, TracerConfig> tracerConfig,
         String errorProducerTopic,
-        String applicationName
+        String applicationName,
+        BatchProperties batch
 ) {
 
+    public record BatchProperties(
+            Map<String, ConsumerConfig> consumer,
+            Map<String, ProducerConfig> producer,
+            String errorProducerTopic) {
+    }
 
     public record ConsumerConfig(
             String topic,
             String groupId,
-            Optional<String> jassConfig,       // No Spring, se o valor não existir, virá null (equivalente ao Optional)
+            Optional<String> jassConfig,
             Optional<String> offsetResetConfig,
             Optional<String> maxRequestSize
     ) {

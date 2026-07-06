@@ -1,13 +1,14 @@
 package br.com.kafka.util.infra.config.transaction;
 
 import br.com.kafka.util.core.domain.ErrorMessage;
-import br.com.kafka.util.infra.config.KafkaConfigProperties;
+import br.com.kafka.util.infra.config.properties.KafkaConfigProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
@@ -18,14 +19,17 @@ import java.util.Map;
 
 @Slf4j
 
-public class JaiminhoSpringErrorRecoverer implements ConsumerRecordRecoverer {
+public class LibKafkaSpringErrorRecoverer implements ConsumerRecordRecoverer {
 
 
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final KafkaConfigProperties properties;
     private final ObjectMapper objectMapper;
 
-    public JaiminhoSpringErrorRecoverer(KafkaConfigProperties properties, ObjectMapper objectMapper) {
+    @Value("${spring.application.name}")
+    private String applicationName;
+
+    public LibKafkaSpringErrorRecoverer(KafkaConfigProperties properties, ObjectMapper objectMapper) {
 
         this.properties = properties;
         this.objectMapper = objectMapper;
@@ -61,7 +65,7 @@ public class JaiminhoSpringErrorRecoverer implements ConsumerRecordRecoverer {
 
             String msgError = exception != null ? exception.getMessage() + (exception.getCause() != null ? ", " + exception.getCause() : "") : "Erro inesperado";
 
-            ErrorMessage errorMessageEnvelope = new ErrorMessage(originalPayload, properties.applicationName(), msgError);
+            ErrorMessage errorMessageEnvelope = new ErrorMessage(originalPayload, this.applicationName, msgError);
             String errorMessageJsonString = objectMapper.writeValueAsString(errorMessageEnvelope);
             String key = record.key() != null ? record.key().toString() : null;
             ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(targetTopic, key, errorMessageJsonString);

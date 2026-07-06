@@ -1,6 +1,6 @@
 package br.com.kafka.util.infra.config.transaction;
 
-import br.com.kafka.util.infra.config.KafkaConfigProperties;
+import br.com.kafka.util.infra.config.properties.KafkaConfigProperties;
 import br.com.kafka.util.interfaces.send.SendToKafka;
 import br.com.kafka.util.interfaces.send.SpringSend;
 import br.com.kafka.util.interfaces.send.SpringSendMsgs;
@@ -13,7 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RequiredArgsConstructor
-public class JaiminhoTransactionManager {
+public class LibKafkaTransactionManager {
 
 
     private final KafkaConfigProperties properties;
@@ -25,7 +25,14 @@ public class JaiminhoTransactionManager {
         config.put(org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
         config.put(org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, org.apache.kafka.common.serialization.StringSerializer.class);
 
-        var specificConfig = properties.producer().get(producerKey);
+        var producers = properties.producer();
+        if (producers == null || !producers.containsKey(producerKey)) {
+            throw new IllegalStateException(
+                    "Producer '" + producerKey +
+                            "' não encontrado em kafka.producer." + producerKey
+            );
+        }
+        var specificConfig = producers.get(producerKey);
         String realTopicName = producerKey;
 
         if (specificConfig != null) {
@@ -46,21 +53,29 @@ public class JaiminhoTransactionManager {
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
 
-        var specificConfig = properties.producer().get(producerKey);
+        var producers = properties.producer();
+        if (producers == null || !producers.containsKey(producerKey)) {
+            throw new IllegalStateException(
+                    "Producer '" + producerKey +
+                            "' não encontrado em kafka.producer." + producerKey
+            );
+        }
+        var specificConfig = producers.get(producerKey);
         String realTopicName = producerKey;
 
         if (specificConfig != null) {
             realTopicName = specificConfig.topic();
-            // Injeta configurações extras de JAAS/Segurança se houver por canal
             specificConfig.jassConfig().ifPresent(jass -> {
                 config.put("sasl.jass.config", jass);
                 config.put("security.protocol", "SASL_SSL");
                 config.put("sasl.mechanism", "PLAIN");
             });
         }
-
-        // Retorna uma instância limpa pronta para controlar a transação
         return new SpringSend(config, realTopicName, objectMapper);
     }
+    public boolean hasProducer(String producerKey) {
 
+        return properties.producer() != null
+                && properties.producer().containsKey(producerKey);
+    }
 }

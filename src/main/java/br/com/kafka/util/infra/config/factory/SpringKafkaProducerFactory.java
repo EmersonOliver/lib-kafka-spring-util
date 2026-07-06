@@ -1,6 +1,6 @@
 package br.com.kafka.util.infra.config.factory;
 
-import br.com.kafka.util.infra.config.KafkaConfigProperties;
+import br.com.kafka.util.infra.config.properties.KafkaConfigProperties;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
