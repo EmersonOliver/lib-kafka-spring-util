@@ -14,7 +14,8 @@ import java.util.stream.Stream;
 
 @Slf4j
 @RequiredArgsConstructor
-public class KafkaConsumerClient    {
+public class KafkaConsumerClient {
+
     private final ExecutorService vtExecutor = Executors.newVirtualThreadPerTaskExecutor();
     private final ObjectMapper objectMapper;
 

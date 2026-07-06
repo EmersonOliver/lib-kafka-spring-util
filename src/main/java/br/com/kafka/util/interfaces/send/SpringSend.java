@@ -48,7 +48,7 @@ public class SpringSend extends SpringSendKafkaBase implements MsgsTransaction {
                 }
                 this.beginTransaction();
                 this.sendMsgs(msgs);
-                log.warn("Mensagem enviada com sucesso no Spring, Transacao NAO!!! comitada {}, {}", retryCount, transactionID);
+                log.warn("Mensagem enviada com sucesso, Transacao NAO!!! comitada {}, {}", retryCount, transactionID);
                 return true;
             } catch (ProducerFencedException | InvalidProducerEpochException e) {
                 log.error("Producer fenced, cannot recover: {} on attempt {}, transactionID={}", topic, retryCount, transactionID);

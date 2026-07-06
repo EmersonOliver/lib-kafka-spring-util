@@ -134,7 +134,7 @@ public class KafkaAutoConfiguration {
 //    @Conditional(KafkaProducerCondition.class)
     public static ProducerKeyInjectionProcessor producerKeyInjectionProcessor(
             LibKafkaTransactionManager transactionManager, KafkaConfigProperties properties) {
-        return new ProducerKeyInjectionProcessor(transactionManager,properties);
+        return new ProducerKeyInjectionProcessor(transactionManager, properties);
     }
 
     @Bean
