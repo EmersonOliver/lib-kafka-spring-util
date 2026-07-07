@@ -11,6 +11,7 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 public class LibKafkaTransactionManager {
@@ -37,11 +38,14 @@ public class LibKafkaTransactionManager {
 
         if (specificConfig != null) {
             realTopicName = specificConfig.topic();
-            specificConfig.jassConfig().ifPresent(jass -> {
-                config.put("sasl.jass.config", jass);
-                config.put("security.protocol", "SASL_SSL");
-                config.put("sasl.mechanism", "PLAIN");
-            });
+            Optional.ofNullable(specificConfig.jassConfig())
+                    .orElse(Optional.empty())
+                    .ifPresent(jass -> {
+                        config.put("sasl.jass.config", jass);
+                        config.put("security.protocol", "SASL_SSL");
+                        config.put("sasl.mechanism", "PLAIN");
+                    });
+
         }
 
         return new SpringSendMsgs(config, realTopicName, objectMapper);
@@ -65,11 +69,14 @@ public class LibKafkaTransactionManager {
 
         if (specificConfig != null) {
             realTopicName = specificConfig.topic();
-            specificConfig.jassConfig().ifPresent(jass -> {
-                config.put("sasl.jass.config", jass);
-                config.put("security.protocol", "SASL_SSL");
-                config.put("sasl.mechanism", "PLAIN");
-            });
+
+            Optional.ofNullable(specificConfig.jassConfig())
+                    .orElse(Optional.empty())
+                    .ifPresent(jass -> {
+                        config.put("sasl.jass.config", jass);
+                        config.put("security.protocol", "SASL_SSL");
+                        config.put("sasl.mechanism", "PLAIN");
+                    });
         }
         return new SpringSend(config, realTopicName, objectMapper);
     }
