@@ -31,10 +31,10 @@ public class SpringSendMsgs extends SpringSendKafkaBase implements SendToKafka {
                 log.info("Iniciando transacao Jaiminho-Spring {} para o topico {}", transactionID, topic);
                 this.beginTransaction();
                 this.sendMsgs(msgs);
-                this.commitInternal(); // Commita imediatamente na lib!
+                this.commitInternal();
 
                 log.info("Mensagem enviada com sucesso, on attempt {} fim da transactionID= {}", retryCount, transactionID);
-                return true; // Retorna true se enviou e comitou com sucesso
+                return true;
             } catch (ProducerFencedException | InvalidProducerEpochException e) {
                 log.error("Producer fenced, cannot recover: {} on attempt {}, transactionID={}", topic, retryCount, transactionID, e);
                 destroyCurrentProducer();
@@ -67,7 +67,7 @@ public class SpringSendMsgs extends SpringSendKafkaBase implements SendToKafka {
         } catch (Exception ignored) {
             // Ignora falhas ao fechar um producer já quebrado
         } finally {
-            this.producer = null; // CRUCIAL: Força o 'if (producer == null)' a ser verdadeiro na próxima tentativa
+            this.producer = null;
         }
     }
 }

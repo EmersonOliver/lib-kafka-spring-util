@@ -9,7 +9,7 @@ import org.springframework.kafka.support.Acknowledgment;
 
 @Slf4j
 @RequiredArgsConstructor
-public class JaiminhoSpringControl implements KafkaControl {
+public class LibKafkaSpringControl implements KafkaControl {
 
     private final Acknowledgment acknowledgment;
     private final MessageWrapper message;

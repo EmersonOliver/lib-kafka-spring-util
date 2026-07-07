@@ -9,5 +9,5 @@ import java.lang.annotation.*;
 public @interface TopicKey {
     String value();
     Class<?> payload();
-    boolean threadSafe() default false;
+    boolean parallelProcessing() default false;
 }

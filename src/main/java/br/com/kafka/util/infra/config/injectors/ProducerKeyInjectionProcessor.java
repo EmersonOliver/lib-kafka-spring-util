@@ -1,12 +1,14 @@
 package br.com.kafka.util.infra.config.injectors;
 
 import br.com.kafka.util.infra.annotations.ProducerKey;
-import br.com.kafka.util.infra.config.transaction.JaiminhoTransactionManager;
+import br.com.kafka.util.infra.config.properties.KafkaConfigProperties;
+import br.com.kafka.util.infra.config.transaction.LibKafkaTransactionManager;
 import br.com.kafka.util.interfaces.send.SendToKafka;
 import lombok.RequiredArgsConstructor;
 import org.springframework.aop.framework.Advised;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanCreationException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.util.ReflectionUtils;
 
@@ -15,13 +17,13 @@ import java.lang.reflect.Field;
 @RequiredArgsConstructor
 public class ProducerKeyInjectionProcessor implements BeanPostProcessor {
 
-    private final JaiminhoTransactionManager jaiminhoTransactionManager;
+    private final LibKafkaTransactionManager libKafkaTransactionManager;
+    private final KafkaConfigProperties properties;
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         Class<?> targetClass = AopUtils.getTargetClass(bean);
 
-        // 1. Varre a classe real em busca dos campos anotados com @ProducerKey
         ReflectionUtils.doWithFields(targetClass, field -> {
             if (field.isAnnotationPresent(ProducerKey.class)) {
 
@@ -31,8 +33,30 @@ public class ProducerKeyInjectionProcessor implements BeanPostProcessor {
 
                 ProducerKey annotation = field.getAnnotation(ProducerKey.class);
                 String producerKey = annotation.value();
-                SendToKafka simpleProducer = jaiminhoTransactionManager.getSimpleProducer(producerKey);
+                if (properties.producer() == null
+                        || !properties.producer().containsKey(producerKey)) {
 
+                    throw new BeanCreationException(
+                            "Producer '%s' não configurado"
+                                    .formatted(producerKey)
+                    );
+                }
+                if (!libKafkaTransactionManager.hasProducer(producerKey)) {
+
+                    throw new BeanCreationException(
+                            """
+                            Producer '%s' encontrado na anotação @ProducerKey,
+                            porém não existe configuração:
+                
+                            kafka:
+                              producer:
+                                %s:
+                                  topic: ...
+                            """.formatted(producerKey, producerKey)
+                    );
+                }
+
+                SendToKafka simpleProducer = libKafkaTransactionManager.getSimpleProducer(producerKey);
                 injectField(bean, field, simpleProducer);
 
                 if (AopUtils.isAopProxy(bean) && bean instanceof Advised) {

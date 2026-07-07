@@ -29,7 +29,7 @@ public class ConsumerKeyInjectionProcessor implements BeanPostProcessor {
             TopicKey annotation = targetClass.getAnnotation(TopicKey.class);
             String consumerKey = annotation.value();
 
-            boolean isThreadSafe = annotation.threadSafe();
+            boolean isParallelProcessing = annotation.parallelProcessing();
 
             if (!(bean instanceof MessageProcessor)) {
                 throw new IllegalStateException("A classe " + targetClass.getName() +
@@ -38,19 +38,19 @@ public class ConsumerKeyInjectionProcessor implements BeanPostProcessor {
 
             Class<?> targetPayloadType = discoverPayloadType(targetClass);
 
-            log.info("Descoberto Consumidor Jaiminho na classe: {} para a chave: {} com payload: {} (threadSafe={})",
-                    targetClass.getSimpleName(), consumerKey, targetPayloadType.getSimpleName(), isThreadSafe);
+            log.info("Descoberto Consumidor Jaiminho na classe: {} para a chave: {} com payload: {} (parallelProcessing={})",
+                    targetClass.getSimpleName(), consumerKey, targetPayloadType.getSimpleName(), isParallelProcessing);
 
             SpringKafkaConsumerFactory springKafkaConsumerFactory = springKafkaConsumerFactoryProvider.getIfAvailable();
             if (springKafkaConsumerFactory == null) {
                 throw new IllegalStateException("SpringKafkaConsumerFactory não encontrada no contexto do Spring.");
             }
 
-            springKafkaConsumerFactory.createAndStartConsumer(
+            springKafkaConsumerFactory.registerConsumer(
                     consumerKey,
                     (MessageProcessor) bean,
                     targetPayloadType,
-                    isThreadSafe
+                    isParallelProcessing
             );
         }
 
