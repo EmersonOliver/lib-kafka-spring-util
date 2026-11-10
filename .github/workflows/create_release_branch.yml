@@ -1,25 +1,24 @@
-name: Manual Release & Maven Publish
+name: Manual Version & Release Tag
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Nova versão a ser publicada (ex: 1.0.0)'
+        description: 'Nova versão para a Release (ex: 1.0.0)'
         required: true
         type: string
 
 jobs:
-  release-and-publish:
+  create-release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      packages: write
 
     steps:
       - name: Validar branch de execução
         if: github.ref != 'refs/heads/master'
         run: |
-          echo "ERRO: A publicação de release é permitida apenas a partir da branch 'master'."
+          echo "ERRO: O versionamento é permitido apenas a partir da branch 'master'."
           exit 1
 
       - name: Checkout repository
@@ -41,7 +40,6 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          server-id: github
 
       - name: Configurar Git identity
         run: |
@@ -58,11 +56,6 @@ jobs:
           git tag "v${{ inputs.version }}"
           git push origin master
           git push origin "v${{ inputs.version }}"
-
-      - name: Publish to GitHub Packages
-        run: mvn -B deploy --file pom.xml
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Criar GitHub Release
         uses: softprops/action-gh-release@v2
