@@ -1,0 +1,74 @@
+name: Manual Release & Maven Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Nova versão a ser publicada (ex: 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  release-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+
+    steps:
+      - name: Validar branch de execução
+        if: github.ref != 'refs/heads/master'
+        run: |
+          echo "ERRO: A publicação de release é permitida apenas a partir da branch 'master'."
+          exit 1
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Validar se a versão/tag já existe
+        run: |
+          NEW_TAG="v${{ inputs.version }}"
+          if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
+            echo "ERRO: A tag '$NEW_TAG' já existe no repositório. Escolha uma versão inédita."
+            exit 1
+          fi
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          server-id: github
+
+      - name: Configurar Git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Atualizar versão no pom.xml
+        run: mvn versions:set -DnewVersion=${{ inputs.version }} -DgenerateBackupPoms=false
+
+      - name: Commit e Tag da nova versão
+        run: |
+          git add pom.xml
+          git commit -m "chore(release): bump version to ${{ inputs.version }} [skip ci]"
+          git tag "v${{ inputs.version }}"
+          git push origin master
+          git push origin "v${{ inputs.version }}"
+
+      - name: Publish to GitHub Packages
+        run: mvn -B deploy --file pom.xml
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Criar GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v${{ inputs.version }}"
+          name: "Release v${{ inputs.version }}"
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
